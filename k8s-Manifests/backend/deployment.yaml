@@ -1,25 +1,29 @@
 apiVersion: apps/v1
 kind: Deployment
-metadata: 
+metadata:
   name: api
   namespace: three-tier
-  labels: 
+  labels:
     role: api
     env: demo
-spec: 
+spec:
   replicas: 1
-  strategy: 
+  strategy:
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1
       maxUnavailable: 25%
-  selector: 
+  selector:
     matchLabels:
       role: api
   template:
     metadata:
       labels:
         role: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+        prometheus.io/path: "/metrics"
     spec:
       imagePullSecrets:
       - name: ecr-registry-secret
@@ -32,7 +36,7 @@ spec:
             value: mongodb://mongo-service/wanderlust
         ports:
         - containerPort: 5000
-        livenessProbe: 
+        livenessProbe:
           httpGet:
             path: /ok
             port: 5000
