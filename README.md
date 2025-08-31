@@ -15,18 +15,6 @@ This repository contains a complete Kubernetes deployment setup for a MERN (Mong
 
 
 
-## Application Code
-The `Application-Code` directory contains the source code for the Three-Tier Web Application. Dive into this directory to explore the frontend and backend implementations.
-
-## Jenkins Pipeline Code
-In the `Jenkins-Pipeline-Code` directory, you'll find Jenkins pipeline scripts. These scripts automate the CI/CD process, ensuring smooth integration and deployment of your application.
-
-## Jenkins Server Terraform
-Explore the `Jenkins-Server-TF` directory to find Terraform scripts for setting up the Jenkins Server on AWS. These scripts simplify the infrastructure provisioning process.
-
-## Kubernetes Manifests Files
-The `Kubernetes-Manifests-Files` directory holds Kubernetes manifests for deploying your application on AWS EKS. Understand and customize these files to suit your project needs.
-
 
 ### Step 1: IAM Configuration
 - Create a user `eks-admin` with `AdministratorAccess`.
@@ -98,10 +86,255 @@ kubectl create namespace three-tier
 kubectl apply -f .
 kubectl delete -f .
 ```
-
-
 <img width="1055" height="357" alt="image" src="https://github.com/user-attachments/assets/9c3c4d0d-41ff-4fe0-ab2e-b3287231d673" />
+## ⚙️ Jenkins configuration
 
+---
+
+## ✅ Prerequisites
+
+- 🐧 Ubuntu 24.04 system
+- 🔑 `sudo` privileges
+- ☕ Java (OpenJDK 11 or 17 — recommended: 17)
+
+---
+
+## 🔄 Post-Installation Recommendations
+
+✅ Install the following plugins during setup:
+
+- Pipeline
+- Docker Pipeline
+- Git
+- SSH Agent
+- Credentials Binding
+- Kubernetes CLI
+- Helm
+
+---
+
+## 🛠️ Installation Steps
+
+### 1. 🔄 Update System Packages
+
+```bash
+sudo apt update && sudo apt upgrade -y
+```
+
+### 2. ☕ Install Java (OpenJDK 17)
+
+```bash
+sudo apt install -y openjdk-17-jdk
+```
+
+🔍 Verify Java installation:
+
+```bash
+java -version
+```
+
+### 3. 📦 Add Jenkins Repository and Key
+
+```bash
+sudo wget -O /usr/share/keyrings/jenkins-keyring.asc \
+  https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+
+echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" | \
+  sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
+```
+
+### 4. 🧰 Install Jenkins
+
+```bash
+sudo apt update
+sudo apt install -y jenkins
+```
+
+### 5. 🚀 Start and Enable Jenkins
+
+```bash
+sudo systemctl enable jenkins
+sudo systemctl start jenkins
+```
+
+Check Jenkins service status:
+
+```bash
+sudo systemctl status jenkins
+```
+
+### 6. 🔥 Open Firewall (if enabled)
+
+```bash
+sudo ufw allow 8080
+sudo ufw allow OpenSSH
+sudo ufw enable
+```
+
+### 7. 🌐 Access Jenkins
+
+Open your browser and go to: `http://your_server_ip:8080`
+
+🔑 Retrieve the initial admin password:
+
+```bash
+sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+```
+
+Follow the setup wizard to:
+
+- Create your first admin user 👤
+- Install recommended plugins 🔌
+- Configure Jenkins as needed ⚙️
+
+### 🔧 Optional: Change Jenkins Port
+
+Edit the Jenkins config file:
+
+```bash
+sudo nano /etc/default/jenkins
+```
+
+Change the line:
+
+```
+HTTP_PORT=8080
+```
+
+Restart Jenkins:
+
+```bash
+sudo systemctl restart jenkins
+```
+
+---
+
+### Pipeline setup
+1. Create Jenkinsfile inside your project directory.
+2. Create ECR credentials in jenkins.
+3. Create jenkins pipeline.
+
+```
+pipeline {
+  agent any
+  options {
+    timestamps()
+  }
+  environment {
+    AWS_REGION        = 'us-west-2'
+    CLUSTER_NAME      = 'three-tier-cluster'
+    NAMESPACE         = 'three-tier'
+    ECR_REPO_FRONTEND = 'wanderlust-frontend'
+    ECR_REPO_BACKEND  = 'wanderlust-backend'
+    ECR_REGISTRY      = "863541429677.dkr.ecr.us-west-2.amazonaws.com" // <-- replace with your AWS account ID
+  }
+  stages {
+    stage('Init AWS + Vars') {
+      steps {
+        script {
+          withAWS(region: "${AWS_REGION}", credentials: 'aws-eks-creds') {
+            echo "AWS credentials and region set"
+          }
+        }
+      }
+    }
+    stage('Checkout Code') {
+      steps {
+        git branch: 'devops', url: 'https://github.com/vipulsaw/Capstone-EKS-Application-Deployment-with-Monitoring.git'
+      }
+    }
+    stage('Configure kubeconfig') {
+      steps {
+        script {
+          withAWS(region: "${AWS_REGION}", credentials: 'aws-eks-creds') {
+            sh """
+              set -e
+              aws eks --region ${AWS_REGION} update-kubeconfig --name ${CLUSTER_NAME}
+            """
+          }
+        }
+      }
+    }
+    stage('Ensure ECR repos') {
+      steps {
+        script {
+          withAWS(region: "${AWS_REGION}", credentials: 'aws-eks-creds') {
+            sh """
+              set -e
+              aws ecr describe-repositories --repository-names ${ECR_REPO_FRONTEND} >/dev/null 2>&1 || \
+                aws ecr create-repository --repository-name ${ECR_REPO_FRONTEND}
+              aws ecr describe-repositories --repository-names ${ECR_REPO_BACKEND} >/dev/null 2>&1 || \
+                aws ecr create-repository --repository-name ${ECR_REPO_BACKEND}
+            """
+          }
+        }
+      }
+    }
+    stage('Login to ECR') {
+      steps {
+        script {
+          withAWS(region: "${AWS_REGION}", credentials: 'aws-eks-creds') {
+            sh """
+              aws ecr get-login-password --region ${AWS_REGION} | \
+              docker login --username AWS --password-stdin ${ECR_REGISTRY}
+            """
+          }
+        }
+      }
+    }
+    stage('Build Frontend Image') {
+      steps {
+        sh """
+          cd frontend
+          docker build -t ${ECR_REGISTRY}/${ECR_REPO_FRONTEND}:latest .
+        """
+      }
+    }
+    stage('Build Backend Image') {
+      steps {
+        sh """
+          cd backend
+          docker build -t ${ECR_REGISTRY}/${ECR_REPO_BACKEND}:latest .
+        """
+      }
+    }
+    stage('Push Images to ECR') {
+      steps {
+        script {
+          withAWS(region: "${AWS_REGION}", credentials: 'aws-eks-creds') {
+            sh """
+              docker push ${ECR_REGISTRY}/${ECR_REPO_FRONTEND}:latest
+              docker push ${ECR_REGISTRY}/${ECR_REPO_BACKEND}:latest
+            """
+          }
+        }
+      }
+    }
+    stage('Apply Manifests to EKS') {
+      steps {
+        script {
+          withAWS(region: "${AWS_REGION}", credentials: 'aws-eks-creds') {
+            sh """
+              echo "Applying backend deployment and service..."
+              kubectl apply -f k8s-Manifests/backend/deployment.yaml -n ${NAMESPACE}
+              kubectl apply -f k8s-Manifests/backend/service.yaml -n ${NAMESPACE}
+              echo "Waiting for backend pods to be ready..."
+              kubectl rollout status deployment/api -n ${NAMESPACE} --timeout=180s
+              echo "Applying frontend deployment and service..."
+              kubectl apply -f k8s-Manifests/frontend/deployment.yaml -n ${NAMESPACE}
+              kubectl apply -f k8s-Manifests/frontend/service.yaml -n ${NAMESPACE}
+              echo "Waiting for frontend pods to be ready..."
+              kubectl rollout status deployment/frontend -n ${NAMESPACE} --timeout=180s
+            """
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+<img width="1079" height="652" alt="image" src="https://github.com/user-attachments/assets/fcb50ad1-c83d-4d47-a3e8-4089b0627b87" />
 
 <img width="1080" height="661" alt="wanderlust-landing" src="https://github.com/user-attachments/assets/1680dbec-9101-44db-b2b3-3bb369d92482" />
 
