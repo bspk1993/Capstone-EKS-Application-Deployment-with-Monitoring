@@ -1,114 +1,132 @@
-# Wanderlust - Your Ultimate Travel Blog 🌍✈️
+# 🚀 End-to-End MERN Application Deployment on Amazon EKS
 
-WanderLust is a simple MERN travel blog website ✈ This project is aimed to help people to contribute in open source, upskill in react and also master git.
+This repository contains a complete Kubernetes deployment setup for a MERN (MongoDB, Express.js, React, Node.js) application using:
 
-![Preview Image](https://github.com/krishnaacharyaa/wanderlust/assets/116620586/17ba9da6-225f-481d-87c0-5d5a010a9538)
+## 🛠️ Key Features & Tools
 
-## [Figma Design File](https://www.figma.com/file/zqNcWGGKBo5Q2TwwVgR6G5/WanderLust--A-Travel-Blog-App?type=design&node-id=0%3A1&mode=design&t=c4oCG8N1Fjf7pxTt-1)
-## [Discord Channel](https://discord.gg/FEKasAdCrG)
+- 🧠 **EKS** → Kubernetes cluster provisioning and management  
+- 📦 **Helm** → Templated, reusable Kubernetes manifests for simplified deployment  
+- 🐳 **Docker** → Containerization of backend, frontend, and database services  
+- ⚙️ **Jenkins** (optional) → CI/CD pipeline automation for seamless deployment  
+- 🌍 **Terraform & AWS CLI** → Infrastructure as Code (IaC) for AWS resource provisioning  
+- 🔒 **ECR** → Secure container image registry for application images
+- 📊 **Prometheus** → Metrics collection and alerting for application & cluster monitoring  
+- 📈 **Grafana** → Interactive dashboards for real-time visualization and insights   
 
-## 🎯 Goal of this project
 
-At its core, this project embodies two important aims:
 
-1. **Start Your Open Source Journey**: It's aimed to kickstart your open-source journey. Here, you'll learn the basics of Git and get a solid grip on the MERN stack and I strongly believe that learning and building should go hand in hand.
-2. **React Mastery**: Once you've got the basics down, a whole new adventure begins of mastering React. This project covers everything, from simple form validation to advanced performance enhancements. And I've planned much more cool stuff to add in the near future if the project hits more number of contributors.
+## Application Code
+The `Application-Code` directory contains the source code for the Three-Tier Web Application. Dive into this directory to explore the frontend and backend implementations.
 
-_I'd love for you to make the most of this project - it's all about learning, helping, and growing in the open-source world._
+## Jenkins Pipeline Code
+In the `Jenkins-Pipeline-Code` directory, you'll find Jenkins pipeline scripts. These scripts automate the CI/CD process, ensuring smooth integration and deployment of your application.
 
-## Setting up the project locally
+## Jenkins Server Terraform
+Explore the `Jenkins-Server-TF` directory to find Terraform scripts for setting up the Jenkins Server on AWS. These scripts simplify the infrastructure provisioning process.
 
-### Setting up the Backend
+## Kubernetes Manifests Files
+The `Kubernetes-Manifests-Files` directory holds Kubernetes manifests for deploying your application on AWS EKS. Understand and customize these files to suit your project needs.
 
-1. **Fork and Clone the Repository**
 
-   ```bash
-   git clone https://github.com/{your-username}/wanderlust.git
-   ```
+### Step 1: IAM Configuration
+- Create a user `eks-admin` with `AdministratorAccess`.
+- Generate Security Credentials: Access Key and Secret Access Key.
 
-2. **Navigate to the Backend Directory**
+### Step 2: EC2 Setup
+- Launch an Ubuntu instance in your favourite region (eg. region `us-west-2`).
+- SSH into the instance from your local machine.
 
-   ```bash
-   cd backend
-   ```
+### Step 3: Install AWS CLI v2
+``` shell
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+sudo apt install unzip
+unzip awscliv2.zip
+sudo ./aws/install -i /usr/local/aws-cli -b /usr/local/bin --update
+aws configure
+```
 
-3. **Install Required Dependencies**
+### Step 4: Install Docker
+``` shell
+sudo apt-get update
+sudo apt install docker.io
+docker ps
+sudo chown $USER /var/run/docker.sock
+```
 
-   ```bash
-   	# installs NVM (Node Version Manager)
-	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-	# download and install Node.js
-	nvm install 20
-	# verifies the right Node.js version is in the environment
-	node -v # should print `v20.12.1`
-	# verifies the right NPM version is in the environment
-	npm -v # should print `10.5.0`
-	npm i
-   ```
+### Step 5: Build Docker images
+``` shell
+docker build -t wanderlust-backend
+```
+ **After the build completes, tag your image so you can push the image to this repository:**
+``` shell
+docker tag wanderlust-backend:latest public.ecr.aws/x4m1c1q0/wanderlust-backend:latest
+```
+**Run the following command to push this image to your newly created AWS repository**
+``` shell
+docker push public.ecr.aws/x4m1c1q0/wanderlust-backend:latest
+```
 
-4. **Set up your MongoDB Database**
+### Step 6: Install kubectl
+``` shell
+curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin
+kubectl version --short --client
+```
 
-   - Open MongoDB Compass and connect MongoDB locally at `mongodb://localhost:27017`.
+### Step 7: Install eksctl
+``` shell
+curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+sudo mv /tmp/eksctl /usr/local/bin
+eksctl version
+```
 
-5. **Import sample data**
+### Step 8: Setup EKS Cluster
+``` shell
+eksctl create cluster --name three-tier-cluster --region us-west-2 --node-type t2.medium --nodes-min 2 --nodes-max 2
+aws eks update-kubeconfig --region us-west-2 --name three-tier-cluster
+kubectl get nodes
+```
+<img width="941" height="459" alt="image (2)" src="https://github.com/user-attachments/assets/4570952b-5cf5-472b-8dcf-9d1e403bb426" />
 
-   > To populate the database with sample posts, you can copy the content from the `backend/data/sample_posts.json` file and insert it as a document in the `wanderlust/posts` collection in your local MongoDB database using either MongoDB Compass or `mongoimport`.
+<img width="800" height="166" alt="image (3)" src="https://github.com/user-attachments/assets/77124c0d-6501-41b4-81e8-159ce50fb7bc" />
 
-   ```bash
-   mongoimport --db wanderlust --collection posts --file ./data/sample_posts.json --jsonArray
-   ```
 
-6. **Configure Environment Variables**
+### Step 9: Run Manifests
+``` shell
+kubectl create namespace three-tier
+kubectl apply -f .
+kubectl delete -f .
+```
 
-   ```bash
-   cp .env.sample .env
-   ```
 
-7. **Start the Backend Server**
+<img width="1055" height="357" alt="image" src="https://github.com/user-attachments/assets/9c3c4d0d-41ff-4fe0-ab2e-b3287231d673" />
 
-   ```bash
-   npm start
-   ```
 
-   > You should see the following on your terminal output on successful setup.
-   >
-   > ```bash
-   > [BACKEND] Server is running on port 5000
-   > [BACKEND] Database connected: mongodb://127.0.0.1/wanderlust
-   > ```
+<img width="1080" height="661" alt="wanderlust-landing" src="https://github.com/user-attachments/assets/1680dbec-9101-44db-b2b3-3bb369d92482" />
 
-### Setting up the Frontend
+<img width="1080" height="662" alt="Create_Blog" src="https://github.com/user-attachments/assets/6abf4b60-49cd-40ab-b97b-c16324088da0" />
 
-1. **Open a New Terminal**
+<img width="1079" height="665" alt="blog-added" src="https://github.com/user-attachments/assets/33676805-82f3-466e-8e8a-87ad293097d5" />
 
-   ```bash
-   cd frontend
-   ```
+<img width="955" height="500" alt="image" src="https://github.com/user-attachments/assets/49708fe4-f474-45f8-bb06-9c1e74e05c50" />
 
-2. **Install Dependencies**
+<img width="957" height="497" alt="image (1)" src="https://github.com/user-attachments/assets/5a89a16d-60ef-4c5c-8721-555d1a39f110" />
 
-   ```bash
-   npm i
-   ```
+### Cleanup
+- To delete the EKS cluster:
+``` shell
+eksctl delete cluster --name three-tier-cluster --region us-west-2
+```
+- To clean up rest of the stuff and not incure any cost
+```
+Stop or Terminate the EC2 instance created in step 2.
+Delete the Load Balancer created in step 9 and 10.
+Go to EC2 console, access security group section and delete security groups created in previous steps
+```
 
-3. **Configure Environment Variables**
 
-   ```bash
-   cp .env.sample .env.local
-   ```
 
-4. **Launch the Development Server**
 
-   ```bash
-   npm run dev
-   ```
-
-## 🌟 Ready to Contribute?
-
-Kindly go through [CONTRIBUTING.md](https://github.com/krishnaacharyaa/wanderlust/blob/main/.github/CONTRIBUTING.md) to understand everything from setup to contributing guidelines.
-
-## 💖 Show Your Support
-
-If you find this project interesting and inspiring, please consider showing your support by starring it on GitHub! Your star goes a long way in helping me reach more developers and encourages me to keep enhancing the project.
-
-🚀 Feel free to get in touch with me for any further queries or support, happy to help :)
+---
+Happy Learning! 🚀👨‍💻👩‍💻
