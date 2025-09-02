@@ -1,114 +1,399 @@
-# Wanderlust - Your Ultimate Travel Blog 🌍✈️
+# 🚀 End-to-End MERN Application Deployment on Amazon EKS
 
-WanderLust is a simple MERN travel blog website ✈ This project is aimed to help people to contribute in open source, upskill in react and also master git.
+This repository contains a complete Kubernetes deployment setup for a MERN (MongoDB, Express.js, React, Node.js) application using:
 
-![Preview Image](https://github.com/krishnaacharyaa/wanderlust/assets/116620586/17ba9da6-225f-481d-87c0-5d5a010a9538)
+## 🛠️ Key Features & Tools
 
-## [Figma Design File](https://www.figma.com/file/zqNcWGGKBo5Q2TwwVgR6G5/WanderLust--A-Travel-Blog-App?type=design&node-id=0%3A1&mode=design&t=c4oCG8N1Fjf7pxTt-1)
-## [Discord Channel](https://discord.gg/FEKasAdCrG)
+- 🧠 **EKS** → Kubernetes cluster provisioning and management  
+- 📦 **Helm** → Templated, reusable Kubernetes manifests for simplified deployment  
+- 🐳 **Docker** → Containerization of backend, frontend, and database services  
+- ⚙️ **Jenkins** (optional) → CI/CD pipeline automation for seamless deployment  
+- 🌍 **Terraform & AWS CLI** → Infrastructure as Code (IaC) for AWS resource provisioning  
+- 🔒 **ECR** → Secure container image registry for application images
+- 📊 **Prometheus** → Metrics collection and alerting for application & cluster monitoring  
+- 📈 **Grafana** → Interactive dashboards for real-time visualization and insights   
 
-## 🎯 Goal of this project
 
-At its core, this project embodies two important aims:
 
-1. **Start Your Open Source Journey**: It's aimed to kickstart your open-source journey. Here, you'll learn the basics of Git and get a solid grip on the MERN stack and I strongly believe that learning and building should go hand in hand.
-2. **React Mastery**: Once you've got the basics down, a whole new adventure begins of mastering React. This project covers everything, from simple form validation to advanced performance enhancements. And I've planned much more cool stuff to add in the near future if the project hits more number of contributors.
 
-_I'd love for you to make the most of this project - it's all about learning, helping, and growing in the open-source world._
+### Step 1: IAM Configuration
+- Create a user `eks-admin` with `AdministratorAccess`.
+- Generate Security Credentials: Access Key and Secret Access Key.
 
-## Setting up the project locally
+### Step 2: EC2 Setup
+- Launch an Ubuntu instance in your favourite region (eg. region `us-west-2`).
+- SSH into the instance from your local machine.
 
-### Setting up the Backend
+### Step 3: Install AWS CLI v2
+``` shell
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+sudo apt install unzip
+unzip awscliv2.zip
+sudo ./aws/install -i /usr/local/aws-cli -b /usr/local/bin --update
+aws configure
+```
 
-1. **Fork and Clone the Repository**
+### Step 4: Install Docker
+``` shell
+sudo apt-get update
+sudo apt install docker.io
+docker ps
+sudo chown $USER /var/run/docker.sock
+```
 
-   ```bash
-   git clone https://github.com/{your-username}/wanderlust.git
-   ```
+### Step 5: Build Docker images
+``` shell
+docker build -t wanderlust-backend
+```
+ **After the build completes, tag your image so you can push the image to this repository:**
+``` shell
+docker tag wanderlust-backend:latest public.ecr.aws/x4m1c1q0/wanderlust-backend:latest
+```
+**Run the following command to push this image to your newly created AWS repository**
+``` shell
+docker push public.ecr.aws/x4m1c1q0/wanderlust-backend:latest
+```
 
-2. **Navigate to the Backend Directory**
+### Step 6: Install kubectl
+``` shell
+curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin
+kubectl version --short --client
+```
 
-   ```bash
-   cd backend
-   ```
+### Step 7: Install eksctl
+``` shell
+curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+sudo mv /tmp/eksctl /usr/local/bin
+eksctl version
+```
 
-3. **Install Required Dependencies**
+### Step 8: Setup EKS Cluster
+``` shell
+eksctl create cluster --name three-tier-cluster --region us-west-2 --node-type t2.medium --nodes-min 2 --nodes-max 2
+aws eks update-kubeconfig --region us-west-2 --name three-tier-cluster
+kubectl get nodes
+```
+<img width="941" height="459" alt="image (2)" src="https://github.com/user-attachments/assets/4570952b-5cf5-472b-8dcf-9d1e403bb426" />
 
-   ```bash
-   	# installs NVM (Node Version Manager)
-	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-	# download and install Node.js
-	nvm install 20
-	# verifies the right Node.js version is in the environment
-	node -v # should print `v20.12.1`
-	# verifies the right NPM version is in the environment
-	npm -v # should print `10.5.0`
-	npm i
-   ```
+<img width="800" height="166" alt="image (3)" src="https://github.com/user-attachments/assets/77124c0d-6501-41b4-81e8-159ce50fb7bc" />
 
-4. **Set up your MongoDB Database**
 
-   - Open MongoDB Compass and connect MongoDB locally at `mongodb://localhost:27017`.
+### Step 9: Run Manifests
+``` shell
+kubectl create namespace three-tier
+kubectl config set-context --current --namespace three-tier
+kubectl apply -f .
+kubectl delete -f .
+```
+<img width="950" height="119" alt="image" src="https://github.com/user-attachments/assets/47929f62-8473-41ad-b8d2-a4c9a2bbc611" />
 
-5. **Import sample data**
+<img width="950" height="357" alt="image" src="https://github.com/user-attachments/assets/9c3c4d0d-41ff-4fe0-ab2e-b3287231d673" />
 
-   > To populate the database with sample posts, you can copy the content from the `backend/data/sample_posts.json` file and insert it as a document in the `wanderlust/posts` collection in your local MongoDB database using either MongoDB Compass or `mongoimport`.
+### Step 10: Install prometheus and Grafana
+``` shell
+helm install prometheus prometheus-community/prometheus -n monitoring
+```
+``` shell
+helm upgrade prometheus prometheus-community/prometheus \
+  -n monitoring \
+  --set server.service.type=LoadBalancer \
+  --set server.persistentVolume.enabled=false \
+  --set alertmanager.persistentVolume.enabled=false
+```
+``` shell
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+helm install grafana grafana/grafana \
+  --namespace monitoring \
+  --set service.type=LoadBalancer \
+  --set persistence.enabled=false \
+  --set adminUser=admin \
+  --set adminPassword=admin123
+```
 
-   ```bash
-   mongoimport --db wanderlust --collection posts --file ./data/sample_posts.json --jsonArray
-   ```
+## ⚙️ Jenkins configuration
 
-6. **Configure Environment Variables**
+---
 
-   ```bash
-   cp .env.sample .env
-   ```
+## ✅ Prerequisites
 
-7. **Start the Backend Server**
+- 🐧 Ubuntu 24.04 system
+- 🔑 `sudo` privileges
+- ☕ Java (OpenJDK 11 or 17 — recommended: 17)
 
-   ```bash
-   npm start
-   ```
+---
 
-   > You should see the following on your terminal output on successful setup.
-   >
-   > ```bash
-   > [BACKEND] Server is running on port 5000
-   > [BACKEND] Database connected: mongodb://127.0.0.1/wanderlust
-   > ```
+## 🔄 Post-Installation Recommendations
 
-### Setting up the Frontend
+✅ Install the following plugins during setup:
 
-1. **Open a New Terminal**
+- Pipeline
+- Docker Pipeline
+- Git
+- SSH Agent
+- Credentials Binding
+- Kubernetes CLI
+- Helm
 
-   ```bash
-   cd frontend
-   ```
+---
 
-2. **Install Dependencies**
+## 🛠️ Installation Steps
 
-   ```bash
-   npm i
-   ```
+### 1. 🔄 Update System Packages
 
-3. **Configure Environment Variables**
+```bash
+sudo apt update && sudo apt upgrade -y
+```
 
-   ```bash
-   cp .env.sample .env.local
-   ```
+### 2. ☕ Install Java (OpenJDK 17)
 
-4. **Launch the Development Server**
+```bash
+sudo apt install -y openjdk-17-jdk
+```
 
-   ```bash
-   npm run dev
-   ```
+🔍 Verify Java installation:
 
-## 🌟 Ready to Contribute?
+```bash
+java -version
+```
 
-Kindly go through [CONTRIBUTING.md](https://github.com/krishnaacharyaa/wanderlust/blob/main/.github/CONTRIBUTING.md) to understand everything from setup to contributing guidelines.
+### 3. 📦 Add Jenkins Repository and Key
 
-## 💖 Show Your Support
+```bash
+sudo wget -O /usr/share/keyrings/jenkins-keyring.asc \
+  https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
 
-If you find this project interesting and inspiring, please consider showing your support by starring it on GitHub! Your star goes a long way in helping me reach more developers and encourages me to keep enhancing the project.
+echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" | \
+  sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
+```
 
-🚀 Feel free to get in touch with me for any further queries or support, happy to help :)
+### 4. 🧰 Install Jenkins
+
+```bash
+sudo apt update
+sudo apt install -y jenkins
+```
+
+### 5. 🚀 Start and Enable Jenkins
+
+```bash
+sudo systemctl enable jenkins
+sudo systemctl start jenkins
+```
+
+Check Jenkins service status:
+
+```bash
+sudo systemctl status jenkins
+```
+
+### 6. 🔥 Open Firewall (if enabled)
+
+```bash
+sudo ufw allow 8080
+sudo ufw allow OpenSSH
+sudo ufw enable
+```
+
+### 7. 🌐 Access Jenkins
+
+Open your browser and go to: `http://your_server_ip:8080`
+
+🔑 Retrieve the initial admin password:
+
+```bash
+sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+```
+
+Follow the setup wizard to:
+
+- Create your first admin user 👤
+- Install recommended plugins 🔌
+- Configure Jenkins as needed ⚙️
+
+### 🔧 Optional: Change Jenkins Port
+
+Edit the Jenkins config file:
+
+```bash
+sudo nano /etc/default/jenkins
+```
+
+Change the line:
+
+```
+HTTP_PORT=8080
+```
+
+Restart Jenkins:
+
+```bash
+sudo systemctl restart jenkins
+```
+
+---
+
+### Pipeline setup
+1. Create Jenkinsfile inside your project directory.
+2. Configure Jenkins Credentials Go to Manage Jenkins → Credentials →  AWS Access Key ID  & Secret Access Key (for EKS access) These credentials will be used in the pipeline securely.
+3. Set up Git integration for Jenkins to trigger builds based on code changes.
+4. Create jenkins pipeline.
+
+```
+pipeline {
+  agent any
+  options {
+    timestamps()
+  }
+  environment {
+    AWS_REGION        = 'us-west-2'
+    CLUSTER_NAME      = 'three-tier-cluster'
+    NAMESPACE         = 'three-tier'
+    ECR_REPO_FRONTEND = 'wanderlust-frontend'
+    ECR_REPO_BACKEND  = 'wanderlust-backend'
+    ECR_REGISTRY      = "863541429677.dkr.ecr.us-west-2.amazonaws.com" // <-- replace with your AWS account ID
+  }
+  stages {
+    stage('Init AWS + Vars') {
+      steps {
+        script {
+          withAWS(region: "${AWS_REGION}", credentials: 'aws-eks-creds') {
+            echo "AWS credentials and region set"
+          }
+        }
+      }
+    }
+    stage('Checkout Code') {
+      steps {
+        git branch: 'devops', url: 'https://github.com/vipulsaw/Capstone-EKS-Application-Deployment-with-Monitoring.git'
+      }
+    }
+    stage('Configure kubeconfig') {
+      steps {
+        script {
+          withAWS(region: "${AWS_REGION}", credentials: 'aws-eks-creds') {
+            sh """
+              set -e
+              aws eks --region ${AWS_REGION} update-kubeconfig --name ${CLUSTER_NAME}
+            """
+          }
+        }
+      }
+    }
+    stage('Ensure ECR repos') {
+      steps {
+        script {
+          withAWS(region: "${AWS_REGION}", credentials: 'aws-eks-creds') {
+            sh """
+              set -e
+              aws ecr describe-repositories --repository-names ${ECR_REPO_FRONTEND} >/dev/null 2>&1 || \
+                aws ecr create-repository --repository-name ${ECR_REPO_FRONTEND}
+              aws ecr describe-repositories --repository-names ${ECR_REPO_BACKEND} >/dev/null 2>&1 || \
+                aws ecr create-repository --repository-name ${ECR_REPO_BACKEND}
+            """
+          }
+        }
+      }
+    }
+    stage('Login to ECR') {
+      steps {
+        script {
+          withAWS(region: "${AWS_REGION}", credentials: 'aws-eks-creds') {
+            sh """
+              aws ecr get-login-password --region ${AWS_REGION} | \
+              docker login --username AWS --password-stdin ${ECR_REGISTRY}
+            """
+          }
+        }
+      }
+    }
+    stage('Build Frontend Image') {
+      steps {
+        sh """
+          cd frontend
+          docker build -t ${ECR_REGISTRY}/${ECR_REPO_FRONTEND}:latest .
+        """
+      }
+    }
+    stage('Build Backend Image') {
+      steps {
+        sh """
+          cd backend
+          docker build -t ${ECR_REGISTRY}/${ECR_REPO_BACKEND}:latest .
+        """
+      }
+    }
+    stage('Push Images to ECR') {
+      steps {
+        script {
+          withAWS(region: "${AWS_REGION}", credentials: 'aws-eks-creds') {
+            sh """
+              docker push ${ECR_REGISTRY}/${ECR_REPO_FRONTEND}:latest
+              docker push ${ECR_REGISTRY}/${ECR_REPO_BACKEND}:latest
+            """
+          }
+        }
+      }
+    }
+    stage('Apply Manifests to EKS') {
+      steps {
+        script {
+          withAWS(region: "${AWS_REGION}", credentials: 'aws-eks-creds') {
+            sh """
+              echo "Applying backend deployment and service..."
+              kubectl apply -f k8s-Manifests/backend/deployment.yaml -n ${NAMESPACE}
+              kubectl apply -f k8s-Manifests/backend/service.yaml -n ${NAMESPACE}
+              echo "Waiting for backend pods to be ready..."
+              kubectl rollout status deployment/api -n ${NAMESPACE} --timeout=180s
+              echo "Applying frontend deployment and service..."
+              kubectl apply -f k8s-Manifests/frontend/deployment.yaml -n ${NAMESPACE}
+              kubectl apply -f k8s-Manifests/frontend/service.yaml -n ${NAMESPACE}
+              echo "Waiting for frontend pods to be ready..."
+              kubectl rollout status deployment/frontend -n ${NAMESPACE} --timeout=180s
+            """
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+<img width="1079" height="652" alt="image" src="https://github.com/user-attachments/assets/fcb50ad1-c83d-4d47-a3e8-4089b0627b87" />
+
+<img width="1080" height="655" alt="image" src="https://github.com/user-attachments/assets/4f2b87cd-fba0-4fac-975f-6f2d3ad5588b" />
+
+<img width="1080" height="661" alt="wanderlust-landing" src="https://github.com/user-attachments/assets/1680dbec-9101-44db-b2b3-3bb369d92482" />
+
+<img width="1080" height="662" alt="Create_Blog" src="https://github.com/user-attachments/assets/6abf4b60-49cd-40ab-b97b-c16324088da0" />
+
+<img width="1079" height="665" alt="blog-added" src="https://github.com/user-attachments/assets/33676805-82f3-466e-8e8a-87ad293097d5" />
+
+<img width="955" height="500" alt="image" src="https://github.com/user-attachments/assets/49708fe4-f474-45f8-bb06-9c1e74e05c50" />
+<img width="1061" height="659" alt="image" src="https://github.com/user-attachments/assets/bee9255c-e26a-4f0d-9fec-d93cf6948ccc" />
+
+<img width="1054" height="647" alt="image" src="https://github.com/user-attachments/assets/7bac6347-afe2-4295-ab07-bd26529db480" />
+<img width="1058" height="650" alt="image" src="https://github.com/user-attachments/assets/bb9b060d-4fed-4d58-9256-0f6486219712" />
+<img width="1063" height="654" alt="image" src="https://github.com/user-attachments/assets/0bfa96d5-cf12-42b4-9551-fb48fa8ad7da" />
+
+
+
+### Cleanup
+- To delete the EKS cluster:
+``` shell
+eksctl delete cluster --name three-tier-cluster --region us-west-2
+```
+- To clean up rest of the stuff and not incure any cost
+```
+Stop or Terminate the EC2 instance created in step 2.
+Delete the Load Balancer created in step 9 and 10.
+Go to EC2 console, access security group section and delete security groups created in previous steps
+```
+
+
+
+
+---
+Happy Learning! 🚀👨‍💻👩‍💻
