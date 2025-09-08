@@ -29,7 +29,7 @@ spec:
       - name: ecr-registry-secret
       containers:
       - name: api
-        image: 863541429677.dkr.ecr.us-west-2.amazonaws.com/wanderlust-backend:latest
+        image: public.ecr.aws/h9h4h9i4/wanderlust-backend:latest:latest
         imagePullPolicy: Always
         env:
           - name: MONGODB_URI
