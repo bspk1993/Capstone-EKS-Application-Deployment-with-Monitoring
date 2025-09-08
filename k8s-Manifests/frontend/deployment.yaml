@@ -25,10 +25,10 @@ spec:
       - name: ecr-registry-secret
       containers:
       - name: frontend
-        image: 863541429677.dkr.ecr.us-west-2.amazonaws.com/wanderlust-frontend:latest
+        image: public.ecr.aws/h9h4h9i4/wanderlust-frontend:latest
         imagePullPolicy: Always
         env:
           - name: VITE_API_PATH
-            value: "http://api.zyanmonster.live"
+            value: "http://a552e389d84244fbd957d0a37d0d4d1e-1599631205.us-west-2.elb.amazonaws.com"
         ports:
         - containerPort: 5173
