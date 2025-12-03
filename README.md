@@ -397,3 +397,17 @@ Go to EC2 console, access security group section and delete security groups crea
 
 ---
 Happy Learning! 🚀👨‍💻👩‍💻
+
+
+**###Ticket dash board SLA working**
+
+**Key components and functions:**
+1. Automated metric tracking: The system automatically tracks key performance indicators (KPIs) like "First Response Time" and "Resolution Time" based on the SLA policies applied to tickets.
+2. Configurable SLA policies: SLAs are defined with specific targets (e.g., respond to a high-priority ticket within 30 minutes) and can be triggered by various factors, such as the ticket's priority level, associated account, or ticket type.
+3. Real-time visualization: Dashboards present this data visually through charts and graphs, showing the ratio of achieved versus breached tickets over a period, and highlighting which metrics are underperforming.
+4. Alerting and proactive monitoring: Many systems will flag tickets that are approaching a breach, allowing support staff to intervene before the deadline is missed.
+5. Performance analysis: Managers can use the dashboard to analyze the root causes of SLA breaches, such as high ticket volume, specific types of issues, or team workload.
+Reporting and insights: Dashboards provide a comprehensive view of SLA adherence, which can be filtered by various ticket properties to give deeper insights into team, agent, or customer-specific performance. 
+
+
+
