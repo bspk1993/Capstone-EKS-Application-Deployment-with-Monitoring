@@ -410,7 +410,7 @@ Happy Learning! 🚀👨‍💻👩‍💻
 10.IN Grafana ---> go for connections ---> data sources ---> add prometheus
 11.give prometheus server URL 
 12.go to search for " kubectl grafana dashboard"  ,Take the ID number
-13.Go to grafana dashboard ---> import dashboard ---> select prometheus in different boxes
+13.Go to grafana dashboard ---> import dashboard ---> select prometheus in different boxes.
 
 
 
