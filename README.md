@@ -392,28 +392,25 @@ Delete the Load Balancer created in step 9 and 10.
 Go to EC2 console, access security group section and delete security groups created in previous steps
 ```
 
-
-
-
 ---
 Happy Learning! 🚀👨‍💻👩‍💻
 
 
 **For Monitoring Promotheus and Grafana**
-snap install helm --classic
-Create a namespace for monitoring
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-helm install prometheus prometheus-community/prometheus\ -n monitoring\ --set server.service.type=loadbalancer\ --set
+1.snap install helm --classic
+2.Create a namespace for monitoring
+3.helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+4.helm repo update
+5.helm install prometheus prometheus-community/prometheus\ -n monitoring\ --set server.service.type=loadbalancer\ --set
 
-we have to give 3000 port inbound rule in security group with ---> VPN IP/MyIP
-go to server and give command "kubectl get all -n monitoring"
-After getting load balancers of promotheus & grafana 
-for grafana url:3000
-IN Grafana ---> go for connections ---> data sources ---> add prometheus
-give prometheus server URL 
-go to search for " kubectl grafana dashboard"  ,Take the ID number
-Go to grafana dashboard ---> import dashboard ---> select prometheus in different boxes
+6.we have to give 3000 port inbound rule in security group with ---> VPN IP/MyIP
+7.go to server and give command "kubectl get all -n monitoring"
+8.After getting load balancers of promotheus & grafana 
+9.for grafana url:3000
+10.IN Grafana ---> go for connections ---> data sources ---> add prometheus
+11.give prometheus server URL 
+12.go to search for " kubectl grafana dashboard"  ,Take the ID number
+13.Go to grafana dashboard ---> import dashboard ---> select prometheus in different boxes
 
 
 
