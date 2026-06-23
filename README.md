@@ -532,7 +532,304 @@ velero restore create --from-backup three-tier
 
 we can see the three-tier namespace in the namespaces 
 
+**ArgoCD Installation and Troubleshooting Commands (Killercoda)**
 
+
+# ArgoCD Installation and Troubleshooting Commands (Killercoda)
+
+## 1. Verify Kubernetes Cluster
+
+```bash
+kubectl get nodes
+kubectl get ns
+kubectl get pods -A
+```
+
+---
+
+## 2. Create ArgoCD Namespace
+
+```bash
+kubectl create namespace argocd
+```
+
+Verify:
+
+```bash
+kubectl get ns
+```
+
+---
+
+## 3. Install ArgoCD
+
+```bash
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
+
+---
+
+## 4. Verify ArgoCD Installation
+
+```bash
+kubectl get pods -n argocd
+kubectl get svc -n argocd
+kubectl get deployment -n argocd
+```
+
+---
+
+## 5. Check ArgoCD Password
+
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret \
+-o jsonpath="{.data.password}" | base64 -d
+```
+
+Username:
+
+```text
+admin
+```
+
+---
+
+## 6. Convert ArgoCD Service to NodePort
+
+Check current service:
+
+```bash
+kubectl get svc argocd-server -n argocd
+```
+
+Convert to NodePort:
+
+```bash
+kubectl patch svc argocd-server -n argocd \
+-p '{"spec":{"type":"NodePort"}}'
+```
+
+Verify:
+
+```bash
+kubectl get svc argocd-server -n argocd
+```
+
+---
+
+## 7. Check ApplicationSet Controller Issue
+
+Check pods:
+
+```bash
+kubectl get pods -n argocd
+```
+
+Check logs:
+
+```bash
+kubectl logs -n argocd argocd-applicationset-controller-77497b89df-wm84h
+```
+
+---
+
+## 8. Verify ArgoCD CRDs
+
+```bash
+kubectl get crd | grep applicationset
+
+kubectl get crd | grep argoproj.io
+```
+
+Expected:
+
+```text
+applications.argoproj.io
+applicationsets.argoproj.io
+appprojects.argoproj.io
+```
+
+---
+
+## 9. Reinstall ArgoCD CRDs (Fix)
+
+```bash
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
+
+If CRDs still missing:
+
+```bash
+kubectl apply --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
+
+Verify:
+
+```bash
+kubectl get crd | grep argoproj.io
+```
+
+---
+
+## 10. Restart ApplicationSet Controller
+
+```bash
+kubectl delete pod -n argocd argocd-applicationset-controller-77497b89df-wm84h
+```
+
+Verify:
+
+```bash
+kubectl get pods -n argocd -w
+```
+
+---
+
+## 11. Verify ArgoCD NodePort
+
+Check service:
+
+```bash
+kubectl get svc -n argocd
+```
+
+Example:
+
+```text
+argocd-server   NodePort
+HTTP  : 30699
+HTTPS : 30171
+```
+
+---
+
+## 12. Verify ArgoCD Internally
+
+```bash
+curl -k https://localhost:30171
+
+curl -kI https://localhost:30171
+```
+
+Expected:
+
+```text
+HTTP/1.1 200 OK
+```
+
+---
+
+## 13. Fix Redirect Loop
+
+Patch ConfigMap:
+
+```bash
+kubectl patch configmap argocd-cmd-params-cm -n argocd \
+-p '{"data":{"server.insecure":"true"}}'
+```
+
+Restart ArgoCD Server:
+
+```bash
+kubectl rollout restart deployment argocd-server -n argocd
+```
+
+Wait:
+
+```bash
+kubectl rollout status deployment argocd-server -n argocd
+```
+
+Verify:
+
+```bash
+kubectl get configmap argocd-cmd-params-cm -n argocd -o yaml | grep insecure
+```
+
+Expected:
+
+```text
+server.insecure: "true"
+```
+
+---
+
+## 14. Access ArgoCD UI
+
+In Killercoda:
+
+Traffic / Ports
+
+Add:
+
+```text
+30699
+```
+
+Click:
+
+```text
+Access
+```
+
+Login:
+
+```text
+Username: admin
+Password: <password from Step 5>
+```
+
+---
+
+# Nginx Deployment Test
+
+Create Deployment:
+
+```bash
+kubectl create deployment nginx --image=nginx
+```
+
+Expose Service:
+
+```bash
+kubectl expose deployment nginx --port=80
+```
+
+Verify:
+
+```bash
+kubectl get deployment
+kubectl get svc
+kubectl get pods
+```
+
+---
+
+# Useful Troubleshooting Commands
+
+```bash
+kubectl get nodes
+
+kubectl get ns
+
+kubectl get pods -A
+
+kubectl get pods -n argocd
+
+kubectl get svc -n argocd
+
+kubectl get deployment -n argocd
+
+kubectl get crd | grep argoproj.io
+
+kubectl logs -n argocd <pod-name>
+
+kubectl describe pod <pod-name> -n argocd
+
+curl -kI https://localhost:30171
+
+ss -tulpn | grep 8080
+```
 
 
 
