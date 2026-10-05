@@ -805,6 +805,304 @@ kubectl get pods
 
 ---
 
+# Argo CD Admin Password Update Procedure
+
+## 1. Purpose
+
+This document describes the procedure to update the password for the built-in `admin` user in Argo CD.
+
+The procedure uses the Argo CD CLI and is applicable to an Argo CD installation running in the Kubernetes `argocd` namespace.
+
+---
+
+## 2. Prerequisites
+
+Before performing the password update, ensure that:
+
+- Kubernetes cluster access is available.
+- The `argocd` namespace exists.
+- The Argo CD server is running.
+- The `argocd` CLI is installed.
+- The user has the current Argo CD administrator password.
+- Network connectivity to the Argo CD API server is available.
+
+Verify the Argo CD pods:
+
+```bash
+kubectl get pods -n argocd
+```
+
+Verify the Argo CD server service:
+
+```bash
+kubectl get svc argocd-server -n argocd
+```
+
+---
+
+## 3. Install Argo CD CLI
+
+If the `argocd` command is not available, install the CLI on a Linux/AMD64 system.
+
+Download the latest stable version:
+
+```bash
+VERSION=$(curl -L -s https://raw.githubusercontent.com/argoproj/argo-cd/stable/VERSION)
+```
+
+Download the CLI:
+
+```bash
+curl -sSL -o argocd-linux-amd64 \
+https://github.com/argoproj/argo-cd/releases/download/v$VERSION/argocd-linux-amd64
+```
+
+Install the CLI:
+
+```bash
+sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+```
+
+Remove the downloaded file:
+
+```bash
+rm argocd-linux-amd64
+```
+
+Verify the installation:
+
+```bash
+argocd version --client
+```
+
+The official Argo CD documentation provides the CLI installation procedure.
+
+---
+
+## 4. Obtain the Initial Admin Password
+
+For a newly installed Argo CD instance, the initial password is stored in:
+
+```text
+argocd-initial-admin-secret
+```
+
+Retrieve the password using:
+
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret \
+-o jsonpath="{.data.password}" | base64 -d; echo
+```
+
+Alternatively, current Argo CD documentation supports:
+
+```bash
+argocd admin initial-password -n argocd
+```
+
+The initial password is intended only for the initial administrator login.
+
+---
+
+## 5. Connect to the Argo CD Server
+
+### Option A — Port Forwarding
+
+If Argo CD is not externally exposed, create a port-forward:
+
+```bash
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+```
+
+Argo CD will then be accessible through:
+
+```text
+https://localhost:8080
+```
+
+This is also the recommended approach for accessing Argo CD during a local/lab setup.
+
+### Option B — Existing Exposed Port
+
+If Argo CD has already been exposed through a NodePort or another endpoint, use that server address.
+
+For example:
+
+```text
+localhost:32221
+```
+
+---
+
+## 6. Login to Argo CD
+
+Login using the `admin` account and the current password:
+
+```bash
+argocd login localhost:32221 \
+--username admin \
+--password '<CURRENT_PASSWORD>' \
+--insecure
+```
+
+For a port-forward on port 8080:
+
+```bash
+argocd login localhost:8080 \
+--username admin \
+--password '<CURRENT_PASSWORD>' \
+--insecure
+```
+
+Expected result:
+
+```text
+'admin' logged in successfully
+Context 'localhost:32221' updated
+```
+
+The `--insecure` option is commonly used in lab environments where the server certificate cannot be verified.
+
+---
+
+## 7. Update the Admin Password
+
+After successful login, execute:
+
+```bash
+argocd account update-password
+```
+
+Argo CD will prompt for:
+
+```text
+*** Enter password of currently logged in user:
+*** Enter new password:
+*** Confirm new password:
+```
+
+Enter:
+
+1. Current password
+2. New password
+3. New password again for confirmation
+
+Expected result:
+
+```text
+Password updated
+```
+
+The official Argo CD documentation identifies `argocd account update-password` as the standard CLI command for changing the account password.
+
+---
+
+## 8. Verify the New Password
+
+Logout from the current Argo CD session:
+
+```bash
+argocd logout localhost:32221
+```
+
+Login again using the new password:
+
+```bash
+argocd login localhost:32221 \
+--username admin \
+--password '<NEW_PASSWORD>' \
+--insecure
+```
+
+Expected result:
+
+```text
+'admin' logged in successfully
+```
+
+This confirms that the password update was successful.
+
+---
+
+## 9. Delete the Initial Password Secret
+
+After successfully changing the password, delete the initial password secret:
+
+```bash
+kubectl delete secret argocd-initial-admin-secret -n argocd
+```
+
+Verify:
+
+```bash
+kubectl get secret -n argocd
+```
+
+The `argocd-initial-admin-secret` is used only for the initial password and can safely be deleted after the password has been changed.
+
+---
+
+## 10. Verification Checklist
+
+| Check | Command | Expected Result |
+|---|---|---|
+| Argo CD pods | `kubectl get pods -n argocd` | All required pods Running |
+| Argo CD service | `kubectl get svc argocd-server -n argocd` | Service available |
+| CLI installed | `argocd version --client` | CLI version displayed |
+| Login | `argocd login ...` | Login successful |
+| Password update | `argocd account update-password` | Password updated |
+| New password test | `argocd login ...` | Login successful |
+| Initial secret | `kubectl get secret -n argocd` | Initial secret removed |
+
+---
+
+## 11. Security Recommendations
+
+- Do not share the Argo CD administrator password.
+- Do not store passwords directly in scripts or Git repositories.
+- Do not include actual passwords in operational documents or tickets.
+- Use a secure password manager or approved secrets-management solution.
+- Use the `admin` account primarily for initial configuration.
+- For production environments, configure SSO or create appropriate local accounts with RBAC instead of using the built-in `admin` account for routine operations. Argo CD recommends using `admin` mainly for initial configuration and then moving to local users or SSO.
+- Changing the admin password also revokes existing admin JWT tokens, requiring users/automation using those tokens to authenticate again.
+
+---
+
+## 12. Quick Reference
+
+For an existing Argo CD installation:
+
+```bash
+# Check Argo CD
+kubectl get pods -n argocd
+
+# Check server
+kubectl get svc argocd-server -n argocd
+
+# Login
+argocd login <ARGOCD_SERVER> \
+--username admin \
+--password '<CURRENT_PASSWORD>' \
+--insecure
+
+# Change password
+argocd account update-password
+
+# Logout
+argocd logout <ARGOCD_SERVER>
+
+# Test new password
+argocd login <ARGOCD_SERVER> \
+--username admin \
+--password '<NEW_PASSWORD>' \
+--insecure
+
+# Remove initial password secret
+kubectl delete secret argocd-initial-admin-secret -n argocd
+```
+
+**Note:** Replace `<ARGOCD_SERVER>` with your actual Argo CD endpoint, such as `localhost:32221` in your Killercoda environment.
+
 # Useful Troubleshooting Commands
 
 ```bash
